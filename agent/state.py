@@ -8,3 +8,4 @@ class AgentState:
     iteration: int = 0
     last_decision: AgentDecision | None= None
     last_result: str = ""
+    last_error: str = ""

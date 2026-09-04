@@ -5,3 +5,4 @@ from dataclasses import dataclass
 class AgentDecision:
     decision: str
     action: str
+    parameters: dict
