@@ -1,8 +1,10 @@
 import os
 import json
 
+from pathlib import Path
 from dotenv import load_dotenv
 from ollama import chat
+from agent import decision
 from tools.tools import create_file
 from agent.state import AgentState
 from agent.decision import AgentDecision
@@ -63,6 +65,22 @@ def execute_action(action: str, parameters: dict) -> str:
 
     return "Ação sem implementação."
 
+def check_goal(action: str, parameters: dict) -> bool:
+    if action == "CREATE_FILE":
+        path = parameters["path"]
+        expected_content = parameters["content"]
+
+        file_path = Path(path)
+
+        if not file_path.exists():
+            return False
+
+        actual_content = file_path.read_text(encoding="utf-8")
+
+        return actual_content == expected_content
+
+    return False
+
 class Agent:
     def __init__(self, goal: str):
         self.model = os.getenv("OLLAMA_MODEL")
@@ -76,7 +94,7 @@ class Agent:
 
             print(f"\nIteração {self.state.iteration}: {decision}")
 
-            if decision.decision == "DONE":
+            if decision.decision == "DONE" and self.state.goal_completed:
                 self.state.status = "completed"
                 break
 
@@ -102,6 +120,9 @@ class Agent:
 
                     Erro da última etapa:
                     {self.state.last_error}
+
+                    Objetivo concluído:
+                    {self.state.goal_completed}
 
                     Use essas informações para decidir o próximo passo.
 
@@ -180,6 +201,7 @@ class Agent:
 
                 self.state.last_result = result
                 self.state.last_error = ""
+                self.state.goal_completed = check_goal(decision.action, decision.parameters)
 
             except Exception as error:
                 result = f"Erro ao executar a ação: {error}"

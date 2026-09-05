@@ -9,3 +9,4 @@ class AgentState:
     last_decision: AgentDecision | None= None
     last_result: str = ""
     last_error: str = ""
+    goal_completed: bool = False

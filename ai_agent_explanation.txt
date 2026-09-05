@@ -1,0 +1,1 @@
+Um agente de IA é um sistema autônomo que percebe seu ambiente através de sensores, toma decisões com base em objetivos e ações, e age no ambiente para alcançar seus objetivos. Ele é capaz de aprender e adaptar-se a novas situações, diferenciando-se de sistemas tradicionais que seguem regras fixas. Exemplos incluem assistentes virtuais, robôs autônomos e sistemas de recomendação.
