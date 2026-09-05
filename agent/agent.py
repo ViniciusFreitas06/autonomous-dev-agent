@@ -100,6 +100,17 @@ class Agent:
                     Resultado da última etapa:
                     {self.state.last_result}
 
+                    Erro da última etapa:
+                    {self.state.last_error}
+
+                    Use essas informações para decidir o próximo passo.
+
+                    Se houver um erro na última etapa:
+                    - analise o erro;
+                    - corrija a decisão ou os parâmetros necessários;
+                    - tente novamente quando fizer sentido;
+                    - não considere o objetivo concluído enquanto o erro impedir a execução da tarefa.
+
                     Decida qual deve ser o próximo passo.
 
                     Você pode escolher:
@@ -143,12 +154,12 @@ class Agent:
             action=decision_data["action"],
             parameters=decision_data["parameters"]
         )
-
                
         validation_error = validate_decision(decision)
 
         if validation_error:
-            self.state.last_result = validation_error
+            self.state.last_error = validation_error
+            self.state.last_result = ""
             return decision
         
         parameter_error = validate_parameters(
@@ -157,7 +168,8 @@ class Agent:
         )
 
         if parameter_error:
-            self.state.last_result = parameter_error
+            self.state.last_error = parameter_error
+            self.state.last_result = ""
             return decision
 
         self.state.last_decision = decision
