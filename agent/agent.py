@@ -32,6 +32,22 @@ def validate_decision(decision: AgentDecision) -> str | None:
 
     return None
 
+def validate_parameters(action: str, parameters: dict) -> str | None:
+    if action == "CREATE_FILE":
+        if "path" not in parameters:
+            return "CREATE_FILE exige o parâmetro 'path'."
+
+        if "content" not in parameters:
+            return "CREATE_FILE exige o parâmetro 'content'."
+        
+        if not isinstance(parameters["path"], str):
+            return "Path exige ser do tipo string."
+
+        if not isinstance(parameters["content"], str):
+            return "Content exige ser do tipo string."
+
+    return None
+
 def execute_action(action: str, parameters: dict) -> str:
     if action not in ALLOWED_ACTIONS:
         return f"Ação '{action}' não permitida."
@@ -127,13 +143,23 @@ class Agent:
             action=decision_data["action"],
             parameters=decision_data["parameters"]
         )
-        
+
+               
         validation_error = validate_decision(decision)
 
         if validation_error:
             self.state.last_result = validation_error
             return decision
         
+        parameter_error = validate_parameters(
+            decision.action,
+            decision.parameters
+        )
+
+        if parameter_error:
+            self.state.last_result = parameter_error
+            return decision
+
         self.state.last_decision = decision
         
         if decision.decision == "CONTINUE":
