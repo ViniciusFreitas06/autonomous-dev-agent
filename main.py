@@ -1,7 +1,7 @@
 from agent.agent import Agent
 
 
-agent = Agent("Explique o que é um agente de IA.")
+agent = Agent("Crie um arquivo Python para dizer hello word e depois o execute com 'python hello.py'")
 
 agent.run(max_iterations=3)
 
