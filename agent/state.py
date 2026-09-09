@@ -8,6 +8,12 @@ class ExpectedFile:
     content: str
 
 @dataclass
+class ValidationSpec:
+    command: str
+    expected_return_code: int = 0
+    expected_stdout_contains: str | None = None
+
+@dataclass
 class AgentHistoryEntry:
     decision: str
     action: str
@@ -27,3 +33,4 @@ class AgentState:
     goal_completed: bool = False
     expected_files: list[ExpectedFile] = field(default_factory=list)
     history: list[AgentHistoryEntry] = field(default_factory=list)
+    validation: ValidationSpec | None = None

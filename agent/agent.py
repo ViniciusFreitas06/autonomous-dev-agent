@@ -125,23 +125,19 @@ def execute_action(action: str, parameters: dict) -> str:
     return "Ação sem implementação."
 
 def check_goal(state: AgentState) -> bool:
-    for expected_file in state.expected_files:
-        file_path = Path(expected_file.path)
+    if state.validation is None:
+        return False
 
-        if not file_path.exists():
+    result = run_command(state.validation.command)
+
+    if f"Return code: {state.validation.expected_return_code}" not in result:
+        return False
+
+    if state.validation.expected_stdout_contains:
+        if state.validation.expected_stdout_contains not in result:
             return False
 
-        actual_content = file_path.read_text(encoding="utf-8")
-
-        if actual_content != expected_file.content:
-            return False
-
-        for entry in state.history:
-            if entry.action == "RUN_COMMAND":
-                if "Return code: 0" in entry.result:
-                    return True
-
-    return False
+    return True
 
 class Agent:
 
