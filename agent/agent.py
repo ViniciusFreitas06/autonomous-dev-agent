@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from ollama import chat
 from agent import decision
 from tools.tools import create_file, run_command
-from agent.state import AgentHistoryEntry, AgentState, ExpectedFile
+from agent.state import AgentHistoryEntry, AgentState, ExpectedFile, ValidationSpec
 from agent.decision import AgentDecision
 
 load_dotenv()
@@ -124,20 +124,47 @@ def execute_action(action: str, parameters: dict) -> str:
 
     return "Ação sem implementação."
 
-def check_goal(state: AgentState) -> bool:
+def check_goal(state: AgentState) -> tuple[bool, str]:
+    print("\n--- DEBUG VALIDAÇÃO ---")
+    print("SPEC:", state.validation)
+
     if state.validation is None:
-        return False
+        print("SPEC está None")
+        return False, "Nenhuma validação foi definida."
+
+    print("Comando:", state.validation.command)
+    print("Return code esperado:", state.validation.expected_return_code)
+    print("STDOUT esperado:", state.validation.expected_stdout_contains)
 
     result = run_command(state.validation.command)
 
-    if f"Return code: {state.validation.expected_return_code}" not in result:
-        return False
+    print("Resultado da validação:")
+    print(result)
 
-    if state.validation.expected_stdout_contains:
-        if state.validation.expected_stdout_contains not in result:
-            return False
+    expected_return_code = state.validation.expected_return_code
 
-    return True
+    if f"Return code: {expected_return_code}" not in result:
+        print("VALIDAÇÃO: FALHOU - return code")
+        return (
+            False,
+            f"Falha: o código de retorno esperado era {expected_return_code}.\n"
+            f"Resultado obtido:\n{result}"
+        )
+
+    expected_stdout = state.validation.expected_stdout_contains
+
+    if expected_stdout:
+        if expected_stdout not in result:
+            print("VALIDAÇÃO: FALHOU - stdout")
+            return (
+                False,
+                f"Falha: a saída esperada '{expected_stdout}' "
+                f"não foi encontrada.\n"
+                f"Resultado obtido:\n{result}"
+            )
+
+    print("VALIDAÇÃO: PASSOU")
+    return True, "Validação concluída com sucesso."
 
 class Agent:
 
@@ -145,12 +172,11 @@ class Agent:
         self.model = os.getenv("OLLAMA_MODEL")
         self.state = AgentState(
         goal=goal,
-        expected_files=[
-            ExpectedFile(
-                path="hello.py",
-                content="print('hello world')"
-            )
-        ]
+        validation=ValidationSpec(
+        command="python hello.py",
+        expected_return_code=0,
+        expected_stdout_contains="hello world"
+        )
     )
 
     def record_validation_error(
@@ -310,8 +336,15 @@ class Agent:
                     self.state.last_error
                 )
 
-                self.state.goal_completed = check_goal(self.state)
+                self.state.goal_completed, validation_feedback = check_goal(self.state)
+                self.state.last_result = (
+                    self.state.last_result
+                    + "\n\nResultado da validação:\n"
+                    + validation_feedback
+                )
+
                 print("Objetivo concluído:", self.state.goal_completed)
+                print("Validação:", validation_feedback)
                 return decision
 
             except Exception as error:

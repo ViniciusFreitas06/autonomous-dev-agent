@@ -11,14 +11,25 @@ def create_file(path: str, content: str) -> str:
     return f"Arquivo criado: {file_path}"
 
 def run_command(command: str) -> str:
+    print("\n--- DEBUG RUN_COMMAND ---")
+    print("Comando recebido:", command)
+
     result = subprocess.run(
         command,
         capture_output=True,
         text=True
     )
 
-    return (
+    print("Return code:", result.returncode)
+    print("STDOUT:", repr(result.stdout))
+    print("STDERR:", repr(result.stderr))
+
+    output = (
         f"Return code: {result.returncode}\n"
         f"STDOUT:\n{result.stdout}\n"
         f"STDERR:\n{result.stderr}"
     )
+
+    print("Output retornado:", repr(output))
+
+    return output
