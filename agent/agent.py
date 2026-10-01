@@ -204,7 +204,7 @@ class Agent:
 
             print(f"\nIteração {self.state.iteration}: {decision}")
 
-            if decision.decision == "DONE" and self.state.goal_completed:
+            if self.state.goal_completed:
                 self.state.status = "completed"
                 break
 

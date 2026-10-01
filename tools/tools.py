@@ -15,7 +15,7 @@ def run_command(command: str) -> str:
     print("Comando recebido:", command)
 
     result = subprocess.run(
-        command,
+        command.split(),
         capture_output=True,
         text=True
     )
