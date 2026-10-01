@@ -10,6 +10,7 @@ class ExpectedFile:
 @dataclass
 class ValidationSpec:
     command: str
+    type: str = "command"
     expected_return_code: int = 0
     expected_stdout_contains: str | None = None
 

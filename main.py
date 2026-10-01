@@ -1,7 +1,7 @@
 from agent.agent import Agent
 
 
-agent = Agent("Crie um arquivo Python para dizer hello word e depois o execute com 'python hello.py'")
+agent = Agent("Crie um arquivo calculadora.py com uma função somar(a, b) que receba dois números e retorne a soma deles.")
 
 agent.run(max_iterations=3)
 
