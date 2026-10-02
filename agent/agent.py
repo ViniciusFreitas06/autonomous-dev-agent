@@ -1,12 +1,12 @@
+
 import os
 import json
 
-from pathlib import Path
 from dotenv import load_dotenv
 from ollama import chat
-from agent import decision
+
 from tools.tools import create_file, run_command
-from agent.state import AgentHistoryEntry, AgentState, ExpectedFile, ValidationSpec
+from agent.state import AgentHistoryEntry, AgentState, ValidationSpec
 from agent.decision import AgentDecision
 from agent.validator import check_goal
 
@@ -22,11 +22,13 @@ ALLOWED_COMMANDS = {
     "pytest",
 }
 
+
 def parse_llm_response(response_text: str):
     try:
         return json.loads(response_text)
     except json.JSONDecodeError:
         return None
+
 
 def record_history(
     state: AgentState,
@@ -44,10 +46,11 @@ def record_history(
 
     state.history.append(history_entry)
 
+
 def validate_command(command: str) -> str | None:
     if not command.strip():
         return "O comando não pode ser vazio."
-    
+
     command_name = command.split()[0]
 
     if command_name not in ALLOWED_COMMANDS:
@@ -60,12 +63,14 @@ def validate_command(command: str) -> str | None:
 
     return None
 
+
 def validate_decision(decision: AgentDecision) -> str | None:
     if decision.decision not in {"DONE", "CONTINUE"}:
         return "Decisão inválida. Use DONE ou CONTINUE."
 
     if decision.action != "NONE" and decision.action not in ALLOWED_ACTIONS:
         available_actions = ", ".join(ALLOWED_ACTIONS)
+
         return (
             f"Ação '{decision.action}' não é permitida. "
             f"Ações disponíveis: {available_actions}."
@@ -79,6 +84,7 @@ def validate_decision(decision: AgentDecision) -> str | None:
 
     return None
 
+
 def validate_parameters(action: str, parameters: dict) -> str | None:
     if action == "CREATE_FILE":
         if "path" not in parameters:
@@ -86,7 +92,7 @@ def validate_parameters(action: str, parameters: dict) -> str | None:
 
         if "content" not in parameters:
             return "CREATE_FILE exige o parâmetro 'content'."
-        
+
         if not isinstance(parameters["path"], str):
             return "Path exige ser do tipo string."
 
@@ -105,6 +111,7 @@ def validate_parameters(action: str, parameters: dict) -> str | None:
 
     return None
 
+
 def execute_action(action: str, parameters: dict) -> str:
     if action not in ALLOWED_ACTIONS:
         return f"Ação '{action}' não permitida."
@@ -112,11 +119,8 @@ def execute_action(action: str, parameters: dict) -> str:
     if action == "CREATE_FILE":
         path = parameters["path"]
         content = parameters["content"]
-        
-        return create_file(
-            path,
-            content
-        )
+
+        return create_file(path, content)
 
     if action == "RUN_COMMAND":
         command = parameters["command"]
@@ -128,16 +132,13 @@ def execute_action(action: str, parameters: dict) -> str:
 
 class Agent:
 
-    def __init__(self, goal: str):
+    def __init__(self, goal: str, validation: ValidationSpec):
         self.model = os.getenv("OLLAMA_MODEL")
+
         self.state = AgentState(
-        goal=goal,
-        validation=ValidationSpec(
-            command="pytest -q test_calculadora.py",
-            type="pytest",
-            expected_return_code=0
+            goal=goal,
+            validation=validation
         )
-    )
 
     def record_validation_error(
         self,
@@ -169,7 +170,7 @@ class Agent:
                 break
 
         else:
-            self.state.status = "max_iterations"    
+            self.state.status = "max_iterations"
 
     def step(self) -> AgentDecision:
         self.state.iteration += 1
@@ -217,25 +218,23 @@ class Agent:
 
                     parameters:
                     - Para CREATE_FILE, informe:
-                    - path: caminho e nome do arquivo
-                    - content: conteúdo do arquivo
+                      - path: caminho e nome do arquivo
+                      - content: conteúdo do arquivo
 
                     - Para RUN_COMMAND, informe:
-                    - command: comando que deve ser executado
-
-                    - Para NONE, use um objeto vazio.
+                      - command: comando que deve ser executado
 
                     - Para NONE, use um objeto vazio.
 
                     Responda SOMENTE neste formato JSON:
 
                     {{
-                    "decision": "CONTINUE",
-                    "action": "RUN_COMMAND",
-                    "parameters": {{
-                        "command": "python hello.py"
+                        "decision": "CONTINUE",
+                        "action": "RUN_COMMAND",
+                        "parameters": {{
+                            "command": "python hello.py"
+                        }}
                     }}
-                }}
                     """,
                 }
             ],
@@ -244,6 +243,50 @@ class Agent:
         print("Resposta do LLM:", response.message.content)
 
         decision_data = parse_llm_response(response.message.content)
+
+        if not isinstance(decision_data, dict):
+            error = "O modelo retornou uma resposta JSON inválida."
+
+            self.state.last_error = error
+            self.state.last_result = ""
+
+            print(error)
+
+            return AgentDecision(
+                decision="CONTINUE",
+                action="NONE",
+                parameters={}
+            )
+
+        required_fields = {"decision", "action", "parameters"}
+
+        if not required_fields.issubset(decision_data):
+            error = "A resposta do modelo não contém todos os campos obrigatórios."
+
+            self.state.last_error = error
+            self.state.last_result = ""
+
+            print(error)
+
+            return AgentDecision(
+                decision="CONTINUE",
+                action="NONE",
+                parameters={}
+            )
+
+        if not isinstance(decision_data["parameters"], dict):
+            error = "O campo parameters precisa ser um objeto JSON."
+
+            self.state.last_error = error
+            self.state.last_result = ""
+
+            print(error)
+
+            return AgentDecision(
+                decision="CONTINUE",
+                action="NONE",
+                parameters={}
+            )
 
         decision = AgentDecision(
             decision=decision_data["decision"],
@@ -260,7 +303,7 @@ class Agent:
                 decision,
                 validation_error
             )
-        
+
         parameter_error = validate_parameters(
             decision.action,
             decision.parameters
@@ -281,10 +324,13 @@ class Agent:
                     decision,
                     command_error
                 )
-        
+
         if decision.decision == "CONTINUE":
             try:
-                result = execute_action(decision.action, decision.parameters)
+                result = execute_action(
+                    decision.action,
+                    decision.parameters
+                )
 
                 self.state.last_result = result
                 self.state.last_error = ""
@@ -296,7 +342,10 @@ class Agent:
                     self.state.last_error
                 )
 
-                self.state.goal_completed, validation_feedback = check_goal(self.state)
+                self.state.goal_completed, validation_feedback = check_goal(
+                    self.state
+                )
+
                 self.state.last_result = (
                     self.state.last_result
                     + "\n\nResultado da validação:\n"
@@ -305,21 +354,23 @@ class Agent:
 
                 print("Objetivo concluído:", self.state.goal_completed)
                 print("Validação:", validation_feedback)
+
                 return decision
 
             except Exception as error:
                 result = f"Erro ao executar a ação: {error}"
+
                 self.state.last_error = result
                 self.state.last_result = ""
 
+                record_history(
+                    self.state,
+                    decision,
+                    "",
+                    result
+                )
+
         else:
             result = "Nenhuma ferramenta executada."
-
-        record_history(
-            self.state,
-            decision,
-            result,
-            self.state.last_error
-        )
 
         return decision
